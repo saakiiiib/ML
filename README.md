@@ -49,13 +49,10 @@ ML/
 │
 ├── README.md
 ├── requirements.txt
-├── base_model.py
-├── rf_framework.py
-├── rf_runner.py          # (alias for rf_framework.py)
-├── xgb_framework.py
-├── xgb_runner.py
-├── lgb_framework.py
-├── lgb_runner.py
+├── base_model.py          # shared base class for all models
+├── rf_framework.py        # Random Forest (class + runnable)
+├── xgb_framework.py       # XGBoost (class + runnable)
+├── lgb_framework.py       # LightGBM (class + runnable)
 ├── datasets/
 │   └── <your_dataset>.csv
 └── outputs/
@@ -192,25 +189,15 @@ pip install jupyterlab
 
 ## Usage
 
-Run the Random Forest training and evaluation pipeline:
+Each `*_framework.py` file is both a **reusable class** and a **directly runnable script**.
 
 ```bash
-python rf_framework.py
+python rf_framework.py     # Random Forest
+python xgb_framework.py    # XGBoost
+python lgb_framework.py    # LightGBM
 ```
 
-Run the XGBoost training and evaluation pipeline:
-
-```bash
-python xgb_runner.py
-```
-
-Run the LightGBM training and evaluation pipeline:
-
-```bash
-python lgb_runner.py
-```
-
-By default the scripts read `CsSnI3_dataset.csv` from the current directory. Update `dataset_path` in the `CONFIG` dict at the top of each runner to point to your dataset.
+By default the scripts read `CsSnI3_dataset.csv` from the current directory. Update `dataset_path` in the `CONFIG` dict inside each file to point to your dataset.
 
 ---
 

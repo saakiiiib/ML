@@ -1,99 +1,229 @@
-# Machine Learning - Random Forest Framework
+# Machine Learning Framework for Photovoltaic Material Property Prediction
 
-## Overview
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/) [![Status](https://img.shields.io/badge/status-active-green.svg)]
 
-This project implements a **Random Forest Regression framework** for analyzing the **CsSnI3 perovskite dataset**. The framework trains models to predict photovoltaic performance metrics (Voc, Jsc, FF, PCE) based on material properties.
+A modular machine learning framework for photovoltaic material property prediction using supervised regression algorithms. This repository provides reusable components and model implementations so researchers and engineers can train, evaluate, and explain regression models for photovoltaic material properties using tabular datasets.
+
+The repository currently contains Random Forest and XGBoost implementations. It is designed to work with any tabular regression dataset that satisfies the required column format. Additional models can easily be added in the future.
+
+---
+
+## Table of contents
+
+- [Features](#features)
+- [Repository Structure](#repository-structure)
+- [Available Models](#available-models)
+  - [Random Forest](#random-forest)
+  - [XGBoost](#xgboost)
+- [Dataset Requirements](#dataset-requirements)
+- [Required Dataset Format](#required-dataset-format)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Outputs](#outputs)
+- [Adding New Models](#adding-new-models)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
 
 ## Features
 
-- **Automated preprocessing**: Log transformation of doping and defect densities
-- **One-hot encoding**: Material categorization
-- **Zero-variance feature detection**: Automatic removal of invariant features
-- **Hyperparameter optimization**: RandomizedSearchCV with KFold cross-validation
-- **Comprehensive evaluation**: R², RMSE, MAE metrics
-- **Feature importance analysis**: Using Random Forest built-in importance
-- **SHAP interpretability**: TreeExplainer for model explanation
-- **Visualization**: Feature importance plots, parity plots, SHAP summary plots
+- Modular machine learning framework
+- Multiple regression models
+- Shared dataset interface
+- Automatic preprocessing
+- Hyperparameter optimization
+- Cross-validation
+- Model evaluation
+- Feature importance analysis
+- SHAP explainability (where supported)
+- Visualization utilities
+- Extensible architecture
 
-## Requirements
+---
+
+## Repository Structure
+
+ML/
+│
+├── README.md
+├── rf_framework.py
+├── xgb_framework.py
+├── datasets/
+│   └── <your_dataset>.csv
+└── outputs/
+
+---
+
+## Available Models
+
+### Random Forest
+
+Features
+- Random Forest Regressor
+- Automatic preprocessing (shared dataset interface)
+- Feature encoding for categorical inputs
+- Hyperparameter optimization
+- Cross-validation
+- Feature importance
+- SHAP analysis (when SHAP is available and enabled)
+- Performance visualization
+
+Hyperparameter Optimization
+
+RandomizedSearchCV is used to perform efficient hyperparameter search over configurable parameter distributions. The framework exposes the search configuration so users can adjust parameter ranges, number of iterations, and cross-validation strategy.
+
+Outputs
+
+- trained model (serialized)
+- predictions for test/holdout sets
+- evaluation metrics (e.g., RMSE, MAE, R2)
+- feature importance plots
+- SHAP summary/force plots (when generated)
+- result files saved to the outputs/ directory
+
+---
+
+### XGBoost
+
+Features
+- XGBoost Regressor (scikit-learn compatible wrapper)
+- Automatic preprocessing (shared dataset interface)
+- Feature encoding for categorical inputs (or passthrough if already encoded)
+- Hyperparameter optimization
+- Cross-validation
+- Feature importance
+- SHAP analysis (SHAP supports XGBoost models)
+- Performance visualization
+
+Hyperparameter Optimization
+
+RandomizedSearchCV (or a scikit-learn-compatible randomized search) is used to tune XGBoost hyperparameters. The search configuration is adjustable to control parameter ranges, iterations, and cross-validation folds.
+
+Outputs
+
+- trained model (serialized)
+- predictions for test/holdout sets
+- evaluation metrics (e.g., RMSE, MAE, R2)
+- feature importance plots
+- SHAP summary/force plots (when generated)
+- result files saved to the outputs/ directory
+
+---
+
+## Dataset Requirements
+
+- Any CSV dataset can be used with this framework.
+- Place your dataset file inside the datasets/ directory.
+- Both Random Forest and XGBoost expect the same dataset structure; models share the dataset interface so switching datasets does not require code changes to model pipelines.
+- Update the dataset path in the model configuration or script argument to point to datasets/<your_dataset>.csv if necessary.
+
+Show
+
+datasets/
+└── <your_dataset>.csv
+
+---
+
+## Required Dataset Format
+
+Requirement | Description
+--- | ---
+CSV format | The input dataset must be a valid CSV file.
+Numerical and/or categorical input features | Features may be numeric or categorical. The framework includes encoding and preprocessing utilities for categorical data.
+One or more continuous regression targets | At least one continuous target column (float) must be present for supervised regression.
+Header required | The CSV must include a header row with column names.
+Missing values | Missing values should be handled before training or supported by the selected model/pipeline (imputation routines are available in preprocessing).
+
+Note: Column selection and target assignment are configurable via the model configuration or script arguments; no particular column names are required by the framework.
+
+---
+
+## Installation
+
+Install required packages (example):
 
 ```bash
-pip install pandas numpy scikit-learn shap matplotlib
+pip install --upgrade pip
+pip install pandas numpy scikit-learn xgboost joblib matplotlib seaborn shap
 ```
 
-## Dataset
+Optional (development / notebooks):
 
-Expected CSV file: `CsSnI3_dataset.csv`
-
-### Required Columns
-
-- **Features**:
-  - `Thickness` (float)
-  - `DopingDensity` (float)
-  - `DefectDensity` (float)
-  - `Material` (categorical)
-
-- **Targets**:
-  - `Voc` (open circuit voltage)
-  - `Jsc` (short circuit current density)
-  - `FF` (fill factor)
-  - `PCE` (power conversion efficiency)
-
-## Configuration
-
-Edit the `CONFIG` dictionary in `rf_framework.py`:
-
-```python
-CONFIG = {
-    "dataset_path": "CsSnI3_dataset.csv",
-    "test_size": 0.2,
-    "random_state": 42,
-    "cv_folds": 5,
-    "search_iterations": 30,
-    "output_file": "results_random_forest.csv"
-}
+```bash
+pip install jupyterlab
 ```
+
+Or create a requirements.txt with the packages above and run:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
 
 ## Usage
+
+Run the Random Forest training and evaluation pipeline:
 
 ```bash
 python rf_framework.py
 ```
 
+Run the XGBoost training and evaluation pipeline:
+
+```bash
+python xgb_framework.py
+```
+
+By default the scripts read datasets/<your_dataset>.csv. You can override the dataset path via a configuration file or command-line argument if supported by the script.
+
+---
+
 ## Outputs
 
-1. **results_random_forest.csv** - Summary table with all metrics
-2. **{target}_feature_importance.png** - Feature importance visualizations
-3. **{target}_parity_plot.png** - Actual vs Predicted plots
-4. **{target}_shap_summary.png** - SHAP summary plots
+Typical generated outputs (model-dependent):
 
-## Workflow
+outputs/
+├── predictions.csv
+├── metrics.csv
+├── feature_importance.png
+├── shap_summary.png
+└── trained_model.pkl
 
-1. Load and preprocess dataset
-2. Apply log transformations
-3. One-hot encode material types
-4. Detect and remove zero-variance features
-5. Train RandomForest with hyperparameter search (RandomizedSearchCV)
-6. Evaluate on train/test sets
-7. Generate feature importance plots
-8. Generate parity plots
-9. Compute and visualize SHAP values
+The exact outputs depend on the selected model and configured analysis options (SHAP plots are generated where SHAP is available and enabled).
 
-## Output Metrics
+---
 
-For each target variable (Voc, Jsc, FF, PCE):
+## Adding New Models
 
-- **Train R²**: Training set coefficient of determination
-- **Test R²**: Testing set coefficient of determination
-- **Train RMSE**: Training set root mean squared error
-- **Test RMSE**: Testing set root mean squared error
-- **Train MAE**: Training set mean absolute error
-- **Test MAE**: Testing set mean absolute error
-- **Best Parameters**: Optimal hyperparameter configuration
+The framework is designed for expansion. To add a new model, implement a model wrapper that conforms to the shared dataset interface and plug it into the existing training/evaluation flow.
 
-## Notes
+Planned / possible future models:
+- Random Forest ✅
+- XGBoost ✅
+- LightGBM
+- CatBoost
+- Support Vector Regression (SVR)
+- Multi-Layer Perceptron (MLP)
+- TabNet
 
-- Zero-variance features are automatically removed before training
-- Cross-validation uses 5 folds with shuffling
-- Hyperparameter search uses 30 random iterations
-- All plots are saved as high-resolution PNG files (300 dpi)
+---
+
+## Contributing
+
+Contributions are welcome. Please follow these guidelines:
+
+- Open an issue to discuss significant changes or new model additions.
+- Fork the repository and create feature branches for pull requests.
+- Keep changes focused and include tests or example runs where appropriate.
+- Document new features in the README and any example notebooks or scripts.
+- Report bugs with a clear description, reproducible steps, and sample configuration/data where possible.
+
+We appreciate well-documented pull requests that include rationale and testing information.
+
+---
+
+## License
+
+This repository is provided under [LICENSE NAME]. Replace this placeholder with the appropriate license identifier (e.g., MIT, Apache-2.0) and add a LICENSE file to the repository.

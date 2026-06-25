@@ -12,9 +12,9 @@ from sklearn.model_selection import (
 )
 
 try:
-    import lightgbm as lgb
+    import xgboost as xgb
 except ImportError:
-    lgb = None
+    xgb = None
 
 from sklearn.metrics import (
     r2_score,
@@ -22,49 +22,31 @@ from sklearn.metrics import (
     mean_absolute_error
 )
 
-# ============================
-# CONFIG
-# ============================
-
 CONFIG = {
     "dataset_path": "CsSnI3_dataset.csv",
     "test_size": 0.2,
     "random_state": 42,
     "cv_folds": 5,
     "search_iterations": 30,
-    "output_file": "results_lightgbm.csv"
+    "output_file": "results_xgboost.csv"
 }
 
-# ============================
-# LOAD DATASET
-# ============================
+if xgb is None:
+    raise ImportError("XGBoost is not installed. Install it with: pip install xgboost")
 
-if lgb is None:
-    raise ImportError("lightgbm is not installed. Install it with: pip install lightgbm")
+df = pd.read_csv(CONFIG["dataset_path"])
 
-df = pd.read_csv(CONFIG["dataset_path"]) 
-
-# ============================
-# PREPROCESSING
-# ============================
-
-# replicate the preprocessing used in rf_framework.py
 if "DopingDensity" in df.columns:
-    df["log_DopingDensity"] = np.log10(df["DopingDensity"]) 
+    df["log_DopingDensity"] = np.log10(df["DopingDensity"])
 if "DefectDensity" in df.columns:
-    df["log_DefectDensity"] = np.log10(df["DefectDensity"]) 
+    df["log_DefectDensity"] = np.log10(df["DefectDensity"])
 
-# Get dummies for Material column if present
 if "Material" in df.columns:
     df = pd.get_dummies(
         df,
         columns=["Material"],
         prefix=["Mat"]
     )
-
-# ============================
-# FEATURES
-# ============================
 
 mat_cols = [col for col in df.columns if col.startswith("Mat_")]
 
@@ -74,14 +56,9 @@ feature_cols = [
     "log_DefectDensity"
 ] + mat_cols
 
-# filter out missing features gracefully
 feature_cols = [c for c in feature_cols if c in df.columns]
 
 targets = [t for t in ["Voc", "Jsc", "FF", "PCE"] if t in df.columns]
-
-# ==================================
-# ZERO-VARIANCE FEATURE HANDLING
-# ==================================
 
 print("\n" + "="*60)
 print("ZERO-VARIANCE FEATURE REPORT")
@@ -101,23 +78,15 @@ feature_cols = [col for col in feature_cols if col not in cols_to_remove]
 print("\nFinal Feature List after removing zero-variance columns:")
 print(feature_cols)
 
-# ============================
-# HYPERPARAMETER SEARCH SPACE
-# ============================
-
 param_dist = {
     "n_estimators": [100, 200, 300, 400, 500],
-    "learning_rate": [0.01, 0.03, 0.05, 0.1],
-    "max_depth": [-1, 3, 5, 7, 10],
-    "num_leaves": [15, 31, 63, 127],
-    "min_child_samples": [5, 10, 20, 50],
+    "learning_rate": [0.01, 0.03, 0.05, 0.1, 0.2],
+    "max_depth": [3, 5, 7, 10, 15],
+    "min_child_weight": [1, 3, 5, 10],
     "subsample": [0.6, 0.8, 1.0],
-    "colsample_bytree": [0.6, 0.8, 1.0]
+    "colsample_bytree": [0.6, 0.8, 1.0],
+    "gamma": [0, 0.1, 0.2, 0.5]
 }
-
-# ============================
-# LOOP OVER TARGETS
-# ============================
 
 results = []
 
@@ -137,7 +106,7 @@ for target in targets:
         random_state=CONFIG["random_state"]
     )
 
-    estimator = lgb.LGBMRegressor(random_state=CONFIG["random_state"])
+    estimator = xgb.XGBRegressor(random_state=CONFIG["random_state"], verbosity=0)
 
     search = RandomizedSearchCV(
         estimator,
@@ -155,10 +124,10 @@ for target in targets:
 
     search.fit(X_train, y_train)
 
-    best_lgb = search.best_estimator_
+    best_xgb = search.best_estimator_
 
-    pred_train = best_lgb.predict(X_train)
-    pred_test = best_lgb.predict(X_test)
+    pred_train = best_xgb.predict(X_train)
+    pred_test = best_xgb.predict(X_test)
 
     train_r2 = r2_score(y_train, pred_train)
     test_r2 = r2_score(y_test, pred_test)
@@ -191,14 +160,10 @@ for target in targets:
         str(search.best_params_)
     ])
 
-    # ============================
-    # FEATURE IMPORTANCE
-    # ============================
-
     plt.figure(figsize=(8, 5))
 
     importance = pd.Series(
-        best_lgb.feature_importances_,
+        best_xgb.feature_importances_,
         index=feature_cols
     )
 
@@ -207,12 +172,8 @@ for target in targets:
     plt.title(f"{target} Feature Importance")
 
     plt.tight_layout()
-    plt.savefig(f"{target}_lgb_feature_importance.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"{target}_xgb_feature_importance.png", dpi=300, bbox_inches='tight')
     plt.close()
-
-    # ============================
-    # PARITY PLOT
-    # ============================
 
     plt.figure(figsize=(5, 5))
 
@@ -228,26 +189,18 @@ for target in targets:
     plt.title(f"{target} Parity Plot")
 
     plt.tight_layout()
-    plt.savefig(f"{target}_lgb_parity_plot.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"{target}_xgb_parity_plot.png", dpi=300, bbox_inches='tight')
     plt.close()
 
-    # ============================
-    # SHAP
-    # ============================
-
-    explainer = shap.TreeExplainer(best_lgb)
+    explainer = shap.TreeExplainer(best_xgb)
 
     shap_values = explainer.shap_values(X_test, check_additivity=False)
 
     plt.figure()
     shap.summary_plot(shap_values, X_test, feature_names=feature_cols, show=False)
     plt.tight_layout()
-    plt.savefig(f"{target}_lgb_shap_summary.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"{target}_xgb_shap_summary.png", dpi=300, bbox_inches='tight')
     plt.close()
-
-# ============================
-# FINAL TABLE
-# ============================
 
 results_df = pd.DataFrame(
     results,

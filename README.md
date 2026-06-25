@@ -4,7 +4,7 @@
 
 A modular machine learning framework for photovoltaic material property prediction using supervised regression algorithms. This repository provides reusable components and model implementations so researchers and engineers can train, evaluate, and explain regression models for photovoltaic material properties using tabular datasets.
 
-The repository currently contains Random Forest and XGBoost implementations. It is designed to work with any tabular regression dataset that satisfies the required column format. Additional models can easily be added in the future.
+The repository currently contains Random Forest, XGBoost, and LightGBM implementations. It is designed to work with any tabular regression dataset that satisfies the required column format. Additional models can easily be added in the future.
 
 ---
 
@@ -15,6 +15,7 @@ The repository currently contains Random Forest and XGBoost implementations. It 
 - [Available Models](#available-models)
   - [Random Forest](#random-forest)
   - [XGBoost](#xgboost)
+  - [LightGBM](#lightgbm)
 - [Dataset Requirements](#dataset-requirements)
 - [Required Dataset Format](#required-dataset-format)
 - [Installation](#installation)
@@ -47,8 +48,14 @@ The repository currently contains Random Forest and XGBoost implementations. It 
 ML/
 │
 ├── README.md
+├── requirements.txt
+├── base_model.py
 ├── rf_framework.py
+├── rf_runner.py          # (alias for rf_framework.py)
 ├── xgb_framework.py
+├── xgb_runner.py
+├── lgb_framework.py
+├── lgb_runner.py
 ├── datasets/
 │   └── <your_dataset>.csv
 └── outputs/
@@ -111,6 +118,33 @@ Outputs
 
 ---
 
+### LightGBM
+
+Features
+- LightGBM Regressor via `lgb.LGBMRegressor`
+- Automatic preprocessing (shared dataset interface)
+- Feature encoding for categorical inputs
+- Hyperparameter optimization
+- Cross-validation
+- Feature importance
+- SHAP analysis
+- Performance visualization
+
+Hyperparameter Optimization
+
+RandomizedSearchCV is used to tune LightGBM hyperparameters over configurable parameter distributions.
+
+Outputs
+
+- trained model (serialized)
+- predictions for test/holdout sets
+- evaluation metrics (e.g., RMSE, MAE, R2)
+- feature importance plots
+- SHAP summary/force plots (when generated)
+- result files saved to the outputs/ directory
+
+---
+
 ## Dataset Requirements
 
 - Any CSV dataset can be used with this framework.
@@ -141,23 +175,17 @@ Note: Column selection and target assignment are configurable via the model conf
 
 ## Installation
 
-Install required packages (example):
+Install required packages:
 
 ```bash
 pip install --upgrade pip
-pip install pandas numpy scikit-learn xgboost joblib matplotlib seaborn shap
+pip install -r requirements.txt
 ```
 
 Optional (development / notebooks):
 
 ```bash
 pip install jupyterlab
-```
-
-Or create a requirements.txt with the packages above and run:
-
-```bash
-pip install -r requirements.txt
 ```
 
 ---
@@ -173,10 +201,16 @@ python rf_framework.py
 Run the XGBoost training and evaluation pipeline:
 
 ```bash
-python xgb_framework.py
+python xgb_runner.py
 ```
 
-By default the scripts read datasets/<your_dataset>.csv. You can override the dataset path via a configuration file or command-line argument if supported by the script.
+Run the LightGBM training and evaluation pipeline:
+
+```bash
+python lgb_runner.py
+```
+
+By default the scripts read `CsSnI3_dataset.csv` from the current directory. Update `dataset_path` in the `CONFIG` dict at the top of each runner to point to your dataset.
 
 ---
 
@@ -199,10 +233,12 @@ The exact outputs depend on the selected model and configured analysis options (
 
 The framework is designed for expansion. To add a new model, implement a model wrapper that conforms to the shared dataset interface and plug it into the existing training/evaluation flow.
 
-Planned / possible future models:
+Implemented models:
 - Random Forest ✅
 - XGBoost ✅
-- LightGBM
+- LightGBM ✅
+
+Planned / possible future models:
 - CatBoost
 - Support Vector Regression (SVR)
 - Multi-Layer Perceptron (MLP)

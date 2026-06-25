@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import shap
 
@@ -40,15 +42,17 @@ df = pd.read_csv(CONFIG["dataset_path"])
 # PREPROCESSING
 # ============================
 
-df["log_DopingDensity"] = np.log10(df["DopingDensity"])
-df["log_DefectDensity"] = np.log10(df["DefectDensity"])
+if "DopingDensity" in df.columns:
+    df["log_DopingDensity"] = np.log10(df["DopingDensity"])
+if "DefectDensity" in df.columns:
+    df["log_DefectDensity"] = np.log10(df["DefectDensity"])
 
-# Get dummies and keep track of which columns were created
-df = pd.get_dummies(
-    df,
-    columns=["Material"],
-    prefix=["Mat"]
-)
+if "Material" in df.columns:
+    df = pd.get_dummies(
+        df,
+        columns=["Material"],
+        prefix=["Mat"]
+    )
 
 # ============================
 # FEATURES
@@ -63,12 +67,9 @@ feature_cols = [
     "log_DefectDensity"
 ] + mat_cols
 
-targets = [
-    "Voc",
-    "Jsc",
-    "FF",
-    "PCE"
-]
+feature_cols = [c for c in feature_cols if c in df.columns]
+
+targets = [t for t in ["Voc", "Jsc", "FF", "PCE"] if t in df.columns]
 
 # ==================================
 # ZERO-VARIANCE FEATURE HANDLING
@@ -213,7 +214,7 @@ for target in targets:
 
     plt.tight_layout()
     plt.savefig(f"{target}_feature_importance.png", dpi=300, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
     # ============================
     # PARITY PLOT
@@ -242,7 +243,7 @@ for target in targets:
 
     plt.tight_layout()
     plt.savefig(f"{target}_parity_plot.png", dpi=300, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
     # ============================
     # SHAP
@@ -262,7 +263,7 @@ for target in targets:
     )
     plt.tight_layout()
     plt.savefig(f"{target}_shap_summary.png", dpi=300, bbox_inches='tight')
-    plt.show()
+    plt.close()
 
 # ============================
 # FINAL TABLE

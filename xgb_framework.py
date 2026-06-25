@@ -1,7 +1,6 @@
 from base_model import BaseModel
 import pandas as pd
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 import shap
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, KFold
@@ -34,8 +33,6 @@ class XGBoostModel(BaseModel):
 
 
 if __name__ == "__main__":
-    matplotlib.use('Agg')
-
     CONFIG = {
         "dataset_path": "CsSnI3_dataset.csv",
         "test_size": 0.2,
@@ -151,7 +148,7 @@ if __name__ == "__main__":
         plt.title(f"{target} Feature Importance")
         plt.tight_layout()
         plt.savefig(imp_path, dpi=300, bbox_inches='tight')
-        plt.close()
+        plt.show()
         print(f"Saved: {imp_path}")
 
         parity_path = f"{target}_xgb_parity_plot.png"
@@ -165,7 +162,7 @@ if __name__ == "__main__":
         plt.title(f"{target} Parity Plot")
         plt.tight_layout()
         plt.savefig(parity_path, dpi=300, bbox_inches='tight')
-        plt.close()
+        plt.show()
         print(f"Saved: {parity_path}")
 
         shap_path = f"{target}_xgb_shap_summary.png"
@@ -175,7 +172,7 @@ if __name__ == "__main__":
         shap.summary_plot(shap_values, X_test, feature_names=feature_cols, show=False)
         plt.tight_layout()
         plt.savefig(shap_path, dpi=300, bbox_inches='tight')
-        plt.close()
+        plt.show()
         print(f"Saved: {shap_path}")
 
     results_df = pd.DataFrame(

@@ -225,5 +225,3 @@ We appreciate well-documented pull requests that include rationale and testing i
 ---
 
 ## License
-
-This repository is provided under [LICENSE NAME]. Replace this placeholder with the appropriate license identifier (e.g., MIT, Apache-2.0) and add a LICENSE file to the repository.

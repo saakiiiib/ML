@@ -1,8 +1,6 @@
 import os
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import shap
 
@@ -40,6 +38,7 @@ class BaseModel:
         ax.set_title(f"{self.name} - {self.target_name} Feature Importance")
         plt.tight_layout()
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
+        plt.show()
         plt.close(fig)
 
     def shap_analysis(self, X_test, feature_names, save_path):
@@ -52,6 +51,7 @@ class BaseModel:
             shap.summary_plot(shap_values, X_df, show=False)
             plt.tight_layout()
             fig.savefig(save_path, dpi=150, bbox_inches="tight")
+            plt.show()
             plt.close(fig)
             n_samples = min(100, X_df.shape[0])
             fig2, ax2 = plt.subplots(figsize=(8, max(4, len(feature_names) * 0.4)))
@@ -59,6 +59,7 @@ class BaseModel:
             plt.tight_layout()
             bar_path = save_path.replace(".png", "_bar.png")
             fig2.savefig(bar_path, dpi=150, bbox_inches="tight")
+            plt.show()
             plt.close(fig2)
         except Exception as e:
             fig, ax = plt.subplots(figsize=(6, 4))

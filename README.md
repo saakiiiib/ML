@@ -4,7 +4,7 @@
 
 A modular machine learning framework for photovoltaic material property prediction using supervised regression algorithms. This repository provides reusable components and model implementations so researchers and engineers can train, evaluate, and explain regression models for photovoltaic material properties using tabular datasets.
 
-The repository currently contains Random Forest, XGBoost, and LightGBM implementations. It is designed to work with any tabular regression dataset that satisfies the required column format. Additional models can easily be added in the future.
+The repository currently contains Random Forest, XGBoost, LightGBM, Decision Tree, and KNN implementations. It is designed to work with any tabular regression dataset that satisfies the required column format. Additional models can easily be added in the future.
 
 ---
 
@@ -16,6 +16,8 @@ The repository currently contains Random Forest, XGBoost, and LightGBM implement
   - [Random Forest](#random-forest)
   - [XGBoost](#xgboost)
   - [LightGBM](#lightgbm)
+  - [Decision Tree](#decision-tree)
+  - [KNN](#knn)
 - [Dataset Requirements](#dataset-requirements)
 - [Required Dataset Format](#required-dataset-format)
 - [Installation](#installation)
@@ -53,6 +55,8 @@ ML/
 ├── rf_framework.py        # Random Forest (class + runnable)
 ├── xgb_framework.py       # XGBoost (class + runnable)
 ├── lgb_framework.py       # LightGBM (class + runnable)
+├── dt_framework.py        # Decision Tree (class + runnable)
+├── knn_framework.py       # KNN (class + runnable)
 ├── datasets/
 │   └── <your_dataset>.csv
 └── outputs/
@@ -142,6 +146,55 @@ Outputs
 
 ---
 
+### Decision Tree
+
+Features
+- Decision Tree Regressor via `sklearn.tree.DecisionTreeRegressor`
+- Automatic preprocessing (shared dataset interface)
+- Feature encoding for categorical inputs
+- Hyperparameter optimization
+- Cross-validation
+- Feature importance (native Gini importance)
+- SHAP analysis via `TreeExplainer`
+- Performance visualization
+
+Outputs
+- trained model (serialized)
+- predictions for test/holdout sets
+- evaluation metrics (e.g., RMSE, MAE, R2)
+- feature importance plots
+- SHAP summary/force plots (when generated)
+- result files saved to the outputs/ directory
+
+---
+
+### KNN
+
+Features
+- KNN Regressor via `sklearn.neighbors.KNeighborsRegressor`
+- Automatic preprocessing with `StandardScaler` inside each CV fold
+- Feature encoding for categorical inputs
+- Hyperparameter optimization
+- Cross-validation
+- Feature importance via permutation importance
+- SHAP analysis via `KernelExplainer` (model-agnostic)
+- Performance visualization
+
+Notes
+- KNN is distance-based, so `StandardScaler` is applied automatically.
+- SHAP uses `KernelExplainer` (slower) instead of `TreeExplainer` — limited to 100 test samples by default.
+- Feature importance uses permutation importance since KNN has no native `feature_importances_`.
+
+Outputs
+- trained model (serialized)
+- predictions for test/holdout sets
+- evaluation metrics (e.g., RMSE, MAE, R2)
+- permutation feature importance plots
+- SHAP summary plots (when generated)
+- result files saved to the outputs/ directory
+
+---
+
 ## Dataset Requirements
 
 - Any CSV dataset can be used with this framework.
@@ -195,6 +248,8 @@ Each `*_framework.py` file is both a **reusable class** and a **directly runnabl
 python rf_framework.py     # Random Forest
 python xgb_framework.py    # XGBoost
 python lgb_framework.py    # LightGBM
+python dt_framework.py     # Decision Tree
+python knn_framework.py    # KNN
 ```
 
 By default the scripts read `CsSnI3_dataset.csv` from the current directory. Update `dataset_path` in the `CONFIG` dict inside each file to point to your dataset.
@@ -224,6 +279,8 @@ Implemented models:
 - Random Forest ✅
 - XGBoost ✅
 - LightGBM ✅
+- Decision Tree ✅
+- KNN ✅
 
 Planned / possible future models:
 - CatBoost

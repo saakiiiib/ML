@@ -1,29 +1,56 @@
 from base_model import BaseModel
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import shap
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, KFold
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
+# NOTE ON IMPLEMENTATION CHOICE
+# ------------------------------
+# The papers you referenced build the ANN in Keras/TensorFlow (Sequential + Dense
+# layers, Adam optimizer, manual epoch loop). This repo's other frameworks are all
+# scikit-learn based with no deep-learning dependency in requirements.txt, so this
+# file uses sklearn.neural_network.MLPRegressor instead — same feedforward /
+# backprop architecture, but it plugs directly into the existing Pipeline +
+# RandomizedSearchCV pattern used by knn_framework.py, with no new dependency.
+#
+# If you specifically need epoch-by-epoch loss curves (val_loss plots) for the
+# paper's figures, or want to match the Keras architecture 1:1 (Dense(128)->
+# Dropout(0.2)->Dense(64)->Dense(32)->Dense(1)) for a direct comparison against
+# those five papers, say so and I'll write a keras_ann_framework.py variant
+# instead/in addition — that needs tensorflow added to requirements.txt.
 
-class KNNModel(BaseModel):
-    def __init__(self, random_state=42, n_neighbors=5, weights="uniform", metric="minkowski"):
-        super().__init__(name="KNN", random_state=random_state)
-        self.n_neighbors = n_neighbors
-        self.weights = weights
-        self.metric = metric
-        # KNN needs feature scaling — store scaler separately
+
+class ANNModel(BaseModel):
+    def __init__(self, random_state=42, hidden_layer_sizes=(128, 64, 32),
+                 activation="relu", alpha=1e-4, learning_rate_init=1e-3,
+                 max_iter=2000):
+        super().__init__(name="ANN", random_state=random_state)
+        self.hidden_layer_sizes = hidden_layer_sizes
+        self.activation = activation
+        self.alpha = alpha
+        self.learning_rate_init = learning_rate_init
+        self.max_iter = max_iter
+        # ANN needs feature scaling — store scaler separately (same as KNNModel)
         self.scaler = StandardScaler()
 
     def _build_model(self):
-        self.model = KNeighborsRegressor(
-            n_neighbors=self.n_neighbors,
-            weights=self.weights,
-            metric=self.metric,
-            n_jobs=-1,
+        self.model = MLPRegressor(
+            hidden_layer_sizes=self.hidden_layer_sizes,
+            activation=self.activation,
+            solver="adam",
+            alpha=self.alpha,
+            learning_rate_init=self.learning_rate_init,
+            max_iter=self.max_iter,
+            early_stopping=True,
+            n_iter_no_change=20,
+            validation_fraction=0.1,
+            random_state=self.random_state,
         )
 
     # Override fit to apply scaling
@@ -41,7 +68,7 @@ class KNNModel(BaseModel):
         X_scaled = self.scaler.transform(X)
         return self.model.predict(X_scaled)
 
-    # KNN has no feature_importances_ — override with permutation importance
+    # MLPRegressor has no feature_importances_ — use permutation importance
     def feature_importance(self, X_test, y_test, feature_names, save_path, random_state=42):
         import os
         from sklearn.inspection import permutation_importance
@@ -58,14 +85,13 @@ class KNNModel(BaseModel):
         ax.set_yticks(range(len(feature_names)))
         ax.set_yticklabels([feature_names[i] for i in idx])
         ax.set_xlabel("Mean Permutation Importance")
-        ax.set_title(f"KNN - {self.target_name} Permutation Feature Importance")
+        ax.set_title(f"ANN - {self.target_name} Permutation Feature Importance")
         plt.tight_layout()
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
-        plt.show()
         plt.close(fig)
         return importances
 
-    # KNN does not support TreeExplainer — use KernelExplainer with background sample
+    # MLPRegressor is not tree-based — use KernelExplainer with background sample
     def shap_analysis(self, X_test, feature_names, save_path, background_size=50):
         import os
         import shap
@@ -80,7 +106,6 @@ class KNNModel(BaseModel):
             shap.summary_plot(shap_values, X_df.iloc[:100], show=False)
             plt.tight_layout()
             fig.savefig(save_path, dpi=150, bbox_inches="tight")
-            plt.show()
             plt.close(fig)
         except Exception as e:
             fig, ax = plt.subplots(figsize=(6, 4))
@@ -90,14 +115,19 @@ class KNNModel(BaseModel):
 
 
 if __name__ == "__main__":
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     CONFIG = {
-        "dataset_path": "CsSnI3_dataset.csv",
+        "dataset_path": os.path.join(BASE_DIR, "datasets", "CsSnI3_dataset.csv"),
         "test_size": 0.2,
         "random_state": 42,
         "cv_folds": 5,
-        "search_iterations": 30,
-        "output_file": "results_knn.csv"
+        "search_iterations": 10,
+        "output_dir": os.path.join(BASE_DIR, "output", "ann"),
+        "output_file": "results_ann.csv"
     }
+
+    OUTPUT_DIR = CONFIG["output_dir"]
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     df = pd.read_csv(CONFIG["dataset_path"])
 
@@ -116,9 +146,9 @@ if __name__ == "__main__":
 
     targets = [t for t in ["Voc", "Jsc", "FF", "PCE"] if t in df.columns]
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("ZERO-VARIANCE FEATURE REPORT")
-    print("="*60)
+    print("=" * 60)
 
     cols_to_remove = []
     for col in feature_cols:
@@ -133,22 +163,25 @@ if __name__ == "__main__":
     print("\nFinal Feature List after removing zero-variance columns:")
     print(feature_cols)
 
-    # KNN pipeline uses StandardScaler internally via the class
+    # ANN pipeline uses StandardScaler internally via the class.
     # For RandomizedSearchCV we build a sklearn Pipeline so scaling
-    # is applied correctly inside each CV fold
+    # is applied correctly inside each CV fold (avoids leakage).
     param_dist = {
-        "knn__n_neighbors": [3, 5, 7, 10, 15, 20, 30, 50],
-        "knn__weights": ["uniform", "distance"],
-        "knn__metric": ["minkowski", "euclidean", "manhattan"],
-        "knn__p": [1, 2]          # only used when metric=minkowski
+        "ann__hidden_layer_sizes": [
+            (32,), (64,), (128,),
+            (64, 32), (128, 64), (128, 64, 32), (256, 128, 64)
+        ],
+        "ann__activation": ["relu", "tanh"],
+        "ann__alpha": [1e-5, 1e-4, 1e-3, 1e-2],
+        "ann__learning_rate_init": [1e-4, 5e-4, 1e-3, 5e-3],
     }
 
     results = []
 
     for target in targets:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("TARGET:", target)
-        print("="*60)
+        print("=" * 60)
 
         X = df[feature_cols].values
         y = df[target].values
@@ -157,10 +190,16 @@ if __name__ == "__main__":
             X, y, test_size=CONFIG["test_size"], random_state=CONFIG["random_state"]
         )
 
-        # Pipeline: scale inside CV to avoid data leakage
         pipe = Pipeline([
             ("scaler", StandardScaler()),
-            ("knn", KNeighborsRegressor(n_jobs=-1))
+            ("ann", MLPRegressor(
+                solver="adam",
+                max_iter=2000,
+                early_stopping=True,
+                n_iter_no_change=20,
+                validation_fraction=0.1,
+                random_state=CONFIG["random_state"],
+            ))
         ])
 
         search = RandomizedSearchCV(
@@ -199,28 +238,43 @@ if __name__ == "__main__":
             str(search.best_params_)
         ])
 
-        # Permutation importance (KNN has no native feature_importances_)
+        # Permutation importance (MLPRegressor has no native feature_importances_)
         from sklearn.inspection import permutation_importance
         scaler_fit = best_pipe.named_steps["scaler"]
-        knn_fit = best_pipe.named_steps["knn"]
+        ann_fit = best_pipe.named_steps["ann"]
         X_test_scaled = scaler_fit.transform(X_test)
 
         perm = permutation_importance(
-            knn_fit, X_test_scaled, y_test,
+            ann_fit, X_test_scaled, y_test,
             n_repeats=10, random_state=CONFIG["random_state"], n_jobs=-1
         )
-        imp_path = f"{target}_knn_feature_importance.png"
+        imp_path = os.path.join(OUTPUT_DIR, f"{target}_ann_feature_importance.png")
         plt.figure(figsize=(8, 5))
         importance = pd.Series(perm.importances_mean, index=feature_cols)
         importance.sort_values().plot.barh()
-        plt.title(f"{target} Permutation Feature Importance (KNN)")
+        plt.title(f"{target} Permutation Feature Importance (ANN)")
         plt.tight_layout()
         plt.savefig(imp_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        plt.close(plt.gcf())
         print(f"Saved: {imp_path}")
 
+        # Loss curve (ANN-specific diagnostic)
+        loss_path = os.path.join(OUTPUT_DIR, f"{target}_ann_loss_curve.png")
+        plt.figure(figsize=(6, 4))
+        plt.plot(ann_fit.loss_curve_, label="Training loss")
+        if hasattr(ann_fit, 'validation_scores_') and ann_fit.validation_scores_:
+            plt.plot(ann_fit.validation_scores_, label="Validation score")
+        plt.xlabel("Iteration")
+        plt.ylabel("Loss")
+        plt.title(f"{target} ANN Training Loss Curve")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(loss_path, dpi=300, bbox_inches='tight')
+        plt.close(plt.gcf())
+        print(f"Saved: {loss_path}")
+
         # Parity plot
-        parity_path = f"{target}_knn_parity_plot.png"
+        parity_path = os.path.join(OUTPUT_DIR, f"{target}_ann_parity_plot.png")
         plt.figure(figsize=(5, 5))
         plt.scatter(y_test, pred_test, alpha=0.7)
         mn = min(y_test.min(), pred_test.min())
@@ -228,30 +282,40 @@ if __name__ == "__main__":
         plt.plot([mn, mx], [mn, mx], "r--")
         plt.xlabel("Actual")
         plt.ylabel("Predicted")
-        plt.title(f"{target} Parity Plot (KNN)")
+        plt.title(f"{target} Parity Plot (ANN)")
         plt.tight_layout()
         plt.savefig(parity_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        plt.close(plt.gcf())
         print(f"Saved: {parity_path}")
 
-        # SHAP via KernelExplainer (model-agnostic, slower)
-        shap_path = f"{target}_knn_shap_summary.png"
+        # SHAP via KernelExplainer (model-agnostic)
+        shap_path = os.path.join(OUTPUT_DIR, f"{target}_ann_shap_summary.png")
         try:
-            import shap
             X_test_df = pd.DataFrame(X_test_scaled, columns=feature_cols)
             background = shap.sample(X_test_df, min(50, len(X_test_df)))
-            explainer = shap.KernelExplainer(knn_fit.predict, background)
-            # limit to 100 samples — KernelExplainer is slow
+            explainer = shap.KernelExplainer(ann_fit.predict, background)
             shap_values = explainer.shap_values(X_test_df.iloc[:100], silent=True)
-            plt.figure()
             shap.summary_plot(shap_values, X_test_df.iloc[:100],
                               feature_names=feature_cols, show=False)
-            plt.tight_layout()
             plt.savefig(shap_path, dpi=300, bbox_inches='tight')
-            plt.show()
+            plt.close(plt.gcf())
             print(f"Saved: {shap_path}")
         except Exception as e:
             print(f"SHAP skipped for {target}: {e}")
+
+        # Residual plot
+        resid_path = os.path.join(OUTPUT_DIR, f"{target}_ann_residual_plot.png")
+        plt.figure(figsize=(5, 5))
+        residuals = y_test - pred_test
+        plt.scatter(pred_test, residuals, alpha=0.7)
+        plt.axhline(y=0, color="r", linestyle="--")
+        plt.xlabel("Predicted")
+        plt.ylabel("Residuals")
+        plt.title(f"{target} Residual Plot (ANN)")
+        plt.tight_layout()
+        plt.savefig(resid_path, dpi=300, bbox_inches='tight')
+        plt.close(plt.gcf())
+        print(f"Saved: {resid_path}")
 
     results_df = pd.DataFrame(
         results,
@@ -262,5 +326,5 @@ if __name__ == "__main__":
     print("\nFINAL RESULTS")
     print(results_df)
 
-    results_df.to_csv(CONFIG["output_file"], index=False)
-    print(f"\nResults saved to {CONFIG['output_file']}")
+    results_df.to_csv(os.path.join(OUTPUT_DIR, CONFIG["output_file"]), index=False)
+    print(f"\nResults saved to {os.path.join(OUTPUT_DIR, CONFIG['output_file'])}")

@@ -1,0 +1,5 @@
+Target,Train_R2,Test_R2,Train_RMSE,Test_RMSE,Train_MAE,Test_MAE,Best_Parameters
+Voc,0.8012639383326874,0.5458263038849525,0.020668169060501736,0.0321850325446264,0.015931698368690673,0.02461575416748742,"{'ann__learning_rate_init': 0.0005, 'ann__hidden_layer_sizes': (128,), 'ann__alpha': 1e-05, 'ann__activation': 'relu'}"
+Jsc,0.9706406864340853,0.9780864314143721,0.49842838570489095,0.5208014693329345,0.40374607514979566,0.4371196615497775,"{'ann__learning_rate_init': 0.0005, 'ann__hidden_layer_sizes': (256, 128, 64), 'ann__alpha': 0.01, 'ann__activation': 'tanh'}"
+FF,-0.6041227082269627,-0.2975628128957608,4.215145405643833,4.1945859263663055,4.00499809477295,4.078363363464954,"{'ann__learning_rate_init': 0.0005, 'ann__hidden_layer_sizes': (128,), 'ann__alpha': 0.001, 'ann__activation': 'tanh'}"
+PCE,0.3716627316863079,0.5345809758771797,2.262335635306934,2.411354385049679,2.0731502245484172,2.1489767470374472,"{'ann__learning_rate_init': 0.0005, 'ann__hidden_layer_sizes': (128, 64), 'ann__alpha': 0.001, 'ann__activation': 'tanh'}"

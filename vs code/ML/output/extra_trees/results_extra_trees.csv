@@ -1,0 +1,5 @@
+Target,Train_R2,Test_R2,Train_RMSE,Test_RMSE,Train_MAE,Test_MAE,Best_Parameters
+Voc,0.9983923873668505,0.9860555297791435,0.00185889290962332,0.00563954378938586,0.0011056295407161105,0.002757415710896096,"{'n_estimators': 300, 'min_samples_split': 5, 'min_samples_leaf': 1, 'max_features': None, 'max_depth': 10, 'bootstrap': False}"
+Jsc,0.9998323438685992,0.9996996774975261,0.037665135948163134,0.06096907192067774,0.022177626751315776,0.03790266321879917,"{'n_estimators': 300, 'min_samples_split': 5, 'min_samples_leaf': 1, 'max_features': None, 'max_depth': 10, 'bootstrap': False}"
+FF,0.9996281083363693,0.9983898782269081,0.06418033636444688,0.14775910829767958,0.0366647148437913,0.08465817187509354,"{'n_estimators': 400, 'min_samples_split': 2, 'min_samples_leaf': 1, 'max_features': None, 'max_depth': 20, 'bootstrap': True}"
+PCE,0.9970644229319439,0.9743742644206014,0.1546348472906569,0.5658185037003667,0.07426164531325657,0.2529322017428792,"{'n_estimators': 300, 'min_samples_split': 5, 'min_samples_leaf': 1, 'max_features': None, 'max_depth': 10, 'bootstrap': False}"

@@ -1,0 +1,5 @@
+Target,Train_R2,Test_R2,Train_RMSE,Test_RMSE,Train_MAE,Test_MAE,Best_Parameters
+Voc,0.9906940809362847,0.985242880940538,0.004472427417928877,0.005801546188125466,0.002917226269662381,0.004075319974501931,"{'subsample': 0.6, 'n_estimators': 300, 'min_child_weight': 5, 'max_depth': 5, 'learning_rate': 0.03, 'gamma': 0, 'colsample_bytree': 0.8}"
+Jsc,0.9995523380493684,0.9996644445767027,0.061546719605202166,0.06444626878896385,0.04673998157399497,0.05246085044189456,"{'subsample': 1.0, 'n_estimators': 300, 'min_child_weight': 3, 'max_depth': 3, 'learning_rate': 0.1, 'gamma': 0.1, 'colsample_bytree': 1.0}"
+FF,0.9979144014115694,0.9969217837148154,0.151987940212852,0.20430286920290078,0.11168137124379458,0.14290084457397345,"{'subsample': 0.6, 'n_estimators': 200, 'min_child_weight': 1, 'max_depth': 7, 'learning_rate': 0.1, 'gamma': 0.2, 'colsample_bytree': 1.0}"
+PCE,0.9944910391066268,0.9837744899032389,0.2118339045653717,0.4502338620268718,0.1446640269438425,0.24076638962427768,"{'subsample': 0.6, 'n_estimators': 500, 'min_child_weight': 5, 'max_depth': 10, 'learning_rate': 0.05, 'gamma': 0.1, 'colsample_bytree': 0.8}"

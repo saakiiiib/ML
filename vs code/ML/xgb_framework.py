@@ -1,41 +1,55 @@
 from base_model import BaseModel
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import shap
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, KFold
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
+try:
+    import xgboost as xgb
+except ImportError:
+    xgb = None
 
-class RandomForestModel(BaseModel):
-    def __init__(self, random_state=42, n_estimators=300, max_depth=None, min_samples_leaf=1, min_samples_split=2):
-        super().__init__(name="RandomForest", random_state=random_state)
+
+class XGBoostModel(BaseModel):
+    def __init__(self, random_state=42, n_estimators=300, learning_rate=0.05, max_depth=5):
+        super().__init__(name="XGBoost", random_state=random_state)
         self.n_estimators = n_estimators
+        self.learning_rate = learning_rate
         self.max_depth = max_depth
-        self.min_samples_leaf = min_samples_leaf
-        self.min_samples_split = min_samples_split
 
     def _build_model(self):
-        self.model = RandomForestRegressor(
+        if xgb is None:
+            raise ImportError("XGBoost is not installed. Install it with: pip install xgboost")
+        self.model = xgb.XGBRegressor(
             n_estimators=self.n_estimators,
+            learning_rate=self.learning_rate,
             max_depth=self.max_depth,
-            min_samples_leaf=self.min_samples_leaf,
-            min_samples_split=self.min_samples_split,
             random_state=self.random_state,
             n_jobs=-1,
+            verbosity=0,
         )
 
 
 if __name__ == "__main__":
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     CONFIG = {
-        "dataset_path": "CsSnI3_dataset.csv",
+        "dataset_path": os.path.join(BASE_DIR, "datasets", "CsSnI3_dataset.csv"),
         "test_size": 0.2,
         "random_state": 42,
         "cv_folds": 5,
         "search_iterations": 30,
-        "output_file": "results_random_forest.csv"
+        "output_dir": os.path.join(BASE_DIR, "output", "xgboost"),
+        "output_file": "results_xgboost.csv"
     }
+
+    OUTPUT_DIR = CONFIG["output_dir"]
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    if xgb is None:
+        raise ImportError("XGBoost is not installed. Install it with: pip install xgboost")
 
     df = pd.read_csv(CONFIG["dataset_path"])
 
@@ -73,10 +87,12 @@ if __name__ == "__main__":
 
     param_dist = {
         "n_estimators": [100, 200, 300, 400, 500],
-        "max_depth": [None, 5, 10, 15, 20],
-        "min_samples_leaf": [1, 2, 4],
-        "min_samples_split": [2, 5, 10],
-        "max_features": ["sqrt", "log2", None]
+        "learning_rate": [0.01, 0.03, 0.05, 0.1, 0.2],
+        "max_depth": [3, 5, 7, 10, 15],
+        "min_child_weight": [1, 3, 5, 10],
+        "subsample": [0.6, 0.8, 1.0],
+        "colsample_bytree": [0.6, 0.8, 1.0],
+        "gamma": [0, 0.1, 0.2, 0.5]
     }
 
     results = []
@@ -93,20 +109,20 @@ if __name__ == "__main__":
             X, y, test_size=CONFIG["test_size"], random_state=CONFIG["random_state"]
         )
 
-        rf = RandomForestRegressor(random_state=CONFIG["random_state"])
+        estimator = xgb.XGBRegressor(random_state=CONFIG["random_state"], verbosity=0)
 
         search = RandomizedSearchCV(
-            rf, param_dist, n_iter=CONFIG["search_iterations"],
+            estimator, param_distributions=param_dist, n_iter=CONFIG["search_iterations"],
             cv=KFold(CONFIG["cv_folds"], shuffle=True, random_state=CONFIG["random_state"]),
             scoring="r2", random_state=CONFIG["random_state"], n_jobs=-1
         )
 
         search.fit(X_train, y_train)
 
-        best_rf = search.best_estimator_
+        best_xgb = search.best_estimator_
 
-        pred_train = best_rf.predict(X_train)
-        pred_test = best_rf.predict(X_test)
+        pred_train = best_xgb.predict(X_train)
+        pred_test = best_xgb.predict(X_test)
 
         train_r2 = r2_score(y_train, pred_train)
         test_r2 = r2_score(y_test, pred_test)
@@ -131,17 +147,17 @@ if __name__ == "__main__":
             str(search.best_params_)
         ])
 
-        imp_path = f"{target}_feature_importance.png"
+        imp_path = os.path.join(OUTPUT_DIR, f"{target}_xgb_feature_importance.png")
         plt.figure(figsize=(8, 5))
-        importance = pd.Series(best_rf.feature_importances_, index=feature_cols)
+        importance = pd.Series(best_xgb.feature_importances_, index=feature_cols)
         importance.sort_values().plot.barh()
         plt.title(f"{target} Feature Importance")
         plt.tight_layout()
         plt.savefig(imp_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        plt.close(plt.gcf())
         print(f"Saved: {imp_path}")
 
-        parity_path = f"{target}_parity_plot.png"
+        parity_path = os.path.join(OUTPUT_DIR, f"{target}_xgb_parity_plot.png")
         plt.figure(figsize=(5, 5))
         plt.scatter(y_test, pred_test, alpha=0.7)
         mn = min(y_test.min(), pred_test.min())
@@ -152,17 +168,15 @@ if __name__ == "__main__":
         plt.title(f"{target} Parity Plot")
         plt.tight_layout()
         plt.savefig(parity_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        plt.close(plt.gcf())
         print(f"Saved: {parity_path}")
 
-        shap_path = f"{target}_shap_summary.png"
-        explainer = shap.TreeExplainer(best_rf)
-        shap_values = explainer.shap_values(X_test)
-        plt.figure()
+        shap_path = os.path.join(OUTPUT_DIR, f"{target}_xgb_shap_summary.png")
+        explainer = shap.TreeExplainer(best_xgb)
+        shap_values = explainer.shap_values(X_test, check_additivity=False)
         shap.summary_plot(shap_values, X_test, feature_names=feature_cols, show=False)
-        plt.tight_layout()
         plt.savefig(shap_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        plt.close(plt.gcf())
         print(f"Saved: {shap_path}")
 
     results_df = pd.DataFrame(
@@ -174,5 +188,5 @@ if __name__ == "__main__":
     print("\nFINAL RESULTS")
     print(results_df)
 
-    results_df.to_csv(CONFIG["output_file"], index=False)
-    print(f"\nResults saved to {CONFIG['output_file']}")
+    results_df.to_csv(os.path.join(OUTPUT_DIR, CONFIG["output_file"]), index=False)
+    print(f"\nResults saved to {os.path.join(OUTPUT_DIR, CONFIG['output_file'])}")

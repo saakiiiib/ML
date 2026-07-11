@@ -1,4 +1,5 @@
 from base_model import BaseModel
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,14 +36,19 @@ class LightGBMModel(BaseModel):
 
 
 if __name__ == "__main__":
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     CONFIG = {
-        "dataset_path": "CsSnI3_dataset.csv",
+        "dataset_path": os.path.join(BASE_DIR, "datasets", "CsSnI3_dataset.csv"),
         "test_size": 0.2,
         "random_state": 42,
         "cv_folds": 5,
         "search_iterations": 30,
+        "output_dir": os.path.join(BASE_DIR, "output", "lightgbm"),
         "output_file": "results_lightgbm.csv"
     }
+
+    OUTPUT_DIR = CONFIG["output_dir"]
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     if lgb is None:
         raise ImportError("lightgbm is not installed. Install it with: pip install lightgbm")
@@ -143,17 +149,17 @@ if __name__ == "__main__":
             str(search.best_params_)
         ])
 
-        imp_path = f"{target}_lgb_feature_importance.png"
+        imp_path = os.path.join(OUTPUT_DIR, f"{target}_lgb_feature_importance.png")
         plt.figure(figsize=(8, 5))
         importance = pd.Series(best_lgb.feature_importances_, index=feature_cols)
         importance.sort_values().plot.barh()
         plt.title(f"{target} Feature Importance")
         plt.tight_layout()
         plt.savefig(imp_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        plt.close(plt.gcf())
         print(f"Saved: {imp_path}")
 
-        parity_path = f"{target}_lgb_parity_plot.png"
+        parity_path = os.path.join(OUTPUT_DIR, f"{target}_lgb_parity_plot.png")
         plt.figure(figsize=(5, 5))
         plt.scatter(y_test, pred_test, alpha=0.7)
         mn = min(y_test.min(), pred_test.min())
@@ -164,17 +170,15 @@ if __name__ == "__main__":
         plt.title(f"{target} Parity Plot")
         plt.tight_layout()
         plt.savefig(parity_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        plt.close(plt.gcf())
         print(f"Saved: {parity_path}")
 
-        shap_path = f"{target}_lgb_shap_summary.png"
+        shap_path = os.path.join(OUTPUT_DIR, f"{target}_lgb_shap_summary.png")
         explainer = shap.TreeExplainer(best_lgb)
         shap_values = explainer.shap_values(X_test, check_additivity=False)
-        plt.figure()
         shap.summary_plot(shap_values, X_test, feature_names=feature_cols, show=False)
-        plt.tight_layout()
         plt.savefig(shap_path, dpi=300, bbox_inches='tight')
-        plt.show()
+        plt.close(plt.gcf())
         print(f"Saved: {shap_path}")
 
     results_df = pd.DataFrame(
@@ -186,5 +190,5 @@ if __name__ == "__main__":
     print("\nFINAL RESULTS")
     print(results_df)
 
-    results_df.to_csv(CONFIG["output_file"], index=False)
-    print(f"\nResults saved to {CONFIG['output_file']}")
+    results_df.to_csv(os.path.join(OUTPUT_DIR, CONFIG["output_file"]), index=False)
+    print(f"\nResults saved to {os.path.join(OUTPUT_DIR, CONFIG['output_file'])}")

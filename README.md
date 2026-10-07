@@ -305,3 +305,10 @@ We appreciate well-documented pull requests that include rationale and testing i
 ---
 
 ## License
+
+This project is released under the [MIT License](LICENSE).
+
+---
+
+> **Note:** this is an earlier framework (240-row datasets per absorber). The newer pipeline with
+> leakage-safe grouped cross-validation used for the CsSnI₃ study lives in a separate repository.

@@ -26,3 +26,6 @@ catboost_info/tmp/
 # OS
 Thumbs.db
 .DS_Store
+
+# CatBoost training artefacts
+catboost_info/
